@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">Journal Workflow</string>
+    <string name="editorial_crest_desc">Academic journal editorial crest illustration</string>
+    <string name="auth_subtitle">Coordinated publication cycles, backward-scheduled editorial stages, and calm visibility for your entire society.</string>
+    <string name="auth_feature_schedule_title">Target &amp; Workflow Generator</string>
+    <string name="auth_feature_schedule_desc">Count back from issue deadlines from Call for Papers (-60d) to Publish (0d).</string>
+    <string name="auth_feature_team_title">Teams &amp; Clear Ownership</string>
+    <string name="auth_feature_team_desc">Assign manuscripts to individuals or teams with one-tap status updates.</string>
+    <string name="auth_feature_visibility_title">Live Progress &amp; Workload</string>
+    <string name="auth_feature_visibility_desc">Track every issue via segmented progress, Gantt timelines, and member charts.</string>
+    <string name="sign_in_with_google">Sign in with Google</string>
+    <string name="auth_first_user_note">Authorized Admin emails sign in with full Admin controls; all other accounts join as Members.</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_my_work">My Work</string>
+    <string name="nav_targets">Targets</string>
+    <string name="nav_teams">Teams</string>
+    <string name="nav_admin">Admin</string>
+</resources>

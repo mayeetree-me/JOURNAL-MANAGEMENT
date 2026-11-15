@@ -1,0 +1,355 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidEmailId(email) {
+      return email is string &&
+             email.size() >= 5 &&
+             email.size() <= 160 &&
+             email.matches('^[a-z0-9._%+\\-]+@[a-z0-9.\\-]+\\.[a-z]{2,}$');
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isValidIsoDate(val) {
+      return val is string && val.size() == 10 && val.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function callerEmailLower() {
+      return isSignedIn() && request.auth.token.email is string
+        ? request.auth.token.email.lower()
+        : '';
+    }
+
+    function isVerifiedEmail() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwnerAdminEmail() {
+      return isVerifiedEmail() && callerEmailLower() == 'mayeetreemilans@gmail.com';
+    }
+
+    function isAllowlistedAdminEmail() {
+      return isVerifiedEmail() &&
+             isValidEmailId(callerEmailLower()) &&
+             exists(/databases/$(database)/documents/admin_emails/$(callerEmailLower()));
+    }
+
+    function isCallerAdminByEmail() {
+      return isOwnerAdminEmail() || isAllowlistedAdminEmail();
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        isCallerAdminByEmail() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isTaskAssignee(taskData) {
+      return (taskData.assigneeType == 'user' && taskData.assigneeId == request.auth.uid) ||
+             (taskData.assigneeType == 'team' &&
+              exists(/databases/$(database)/documents/teams/$(taskData.assigneeId)) &&
+              (request.auth.uid in get(/databases/$(database)/documents/teams/$(taskData.assigneeId)).data.memberIds ||
+               get(/databases/$(database)/documents/teams/$(taskData.assigneeId)).data.leadId == request.auth.uid));
+    }
+
+    // --- Entity Validation Helpers ---
+    function isValidAdminEmailEntry(data, emailId) {
+      return isValidEmailId(emailId) &&
+             data.email == emailId &&
+             isValidId(data.addedBy) &&
+             data.isOwner is bool;
+    }
+
+    function isValidUser(data) {
+      return isValidId(data.userId) &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             (!('photoUrl' in data) || data.photoUrl == null || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+             data.role in ['admin', 'member'];
+    }
+
+    function isValidPrivateInfo(data) {
+      return isValidId(data.userId) &&
+             data.email is string && data.email.size() >= 3 && data.email.size() <= 160;
+    }
+
+    function isValidTeam(data) {
+      return data.workspaceId == 'default' &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+             data.description is string && data.description.size() <= 300 &&
+             isValidId(data.leadId) &&
+             data.memberIds is list && data.memberIds.size() <= 50 &&
+             (data.memberIds.size() == 0 || data.memberIds[0] is string) &&
+             isValidId(data.createdBy);
+    }
+
+    function isValidTarget(data) {
+      return data.workspaceId == 'default' &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+             data.description is string && data.description.size() <= 500 &&
+             isValidIsoDate(data.deadline) &&
+             data.stages is list && data.stages.size() <= 30 &&
+             (data.stages.size() == 0 || data.stages[0] is map) &&
+             isValidId(data.createdBy);
+    }
+
+    function isValidTemplate(data) {
+      return data.workspaceId == 'default' &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.stages is list && data.stages.size() <= 30 &&
+             (data.stages.size() == 0 || data.stages[0] is map) &&
+             isValidId(data.createdBy);
+    }
+
+    function isValidTask(data) {
+      return data.workspaceId == 'default' &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+             data.description is string && data.description.size() <= 1000 &&
+             isValidId(data.targetId) &&
+             data.stageName is string && data.stageName.size() >= 1 && data.stageName.size() <= 80 &&
+             isValidIsoDate(data.dueDate) &&
+             data.priority in ['low', 'medium', 'high'] &&
+             data.status in ['todo', 'in_progress', 'done'] &&
+             data.assigneeType in ['user', 'team'] &&
+             isValidId(data.assigneeId) &&
+             isValidId(data.createdBy);
+    }
+
+    function isValidComment(data) {
+      return isValidId(data.taskId) &&
+             isValidId(data.authorId) &&
+             data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 80 &&
+             data.body is string && data.body.size() >= 1 && data.body.size() <= 1000;
+    }
+
+    // --- Collection Rules ---
+    match /admin_emails/{emailId} {
+      allow get: if isSignedIn() && isValidEmailId(emailId) && (isAdmin() || emailId == callerEmailLower());
+      allow list: if isAdmin();
+
+      allow create: if isValidEmailId(emailId) &&
+                       incoming().keys().hasAll(['email', 'addedBy', 'isOwner', 'createdAt']) &&
+                       incoming().keys().hasOnly(['email', 'addedBy', 'isOwner', 'createdAt']) &&
+                       incoming().addedBy == request.auth.uid &&
+                       isValidAdminEmailEntry(incoming(), emailId) &&
+                       isValidTimestamp(incoming().createdAt) &&
+                       (
+                         (isAdmin() && (emailId != 'mayeetreemilans@gmail.com' || incoming().isOwner == true)) ||
+                         (isOwnerAdminEmail() && emailId == 'mayeetreemilans@gmail.com' && incoming().isOwner == true)
+                       );
+
+      allow update: if false;
+      allow delete: if isAdmin() && isValidEmailId(emailId) && emailId != 'mayeetreemilans@gmail.com';
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if isSignedIn() && resource.data.role in ['admin', 'member'];
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'role', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'photoUrl', 'role', 'createdAt', 'updatedAt']) &&
+                       isValidUser(incoming()) &&
+                       isValidTimestamp(incoming().createdAt) &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       (
+                         incoming().role == 'member' ||
+                         (incoming().role == 'admin' && isCallerAdminByEmail())
+                       );
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidUser(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       (
+                         (
+                           request.auth.uid == userId &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoUrl', 'role', 'updatedAt']) &&
+                           (
+                             incoming().role == existing().role ||
+                             (incoming().role == 'admin' && isCallerAdminByEmail()) ||
+                             (incoming().role == 'member' && !isCallerAdminByEmail())
+                           )
+                         ) ||
+                         (
+                           isAdmin() &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['role', 'displayName', 'photoUrl', 'updatedAt'])
+                         )
+                       );
+
+      allow delete: if false;
+
+      match /private/{docId} {
+        allow get, list: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+        allow create, update: if isSignedIn() &&
+                                 isValidId(userId) &&
+                                 request.auth.uid == userId &&
+                                 docId == 'info' &&
+                                 incoming().userId == request.auth.uid &&
+                                 incoming().keys().hasAll(['userId', 'email', 'updatedAt']) &&
+                                 incoming().keys().hasOnly(['userId', 'email', 'updatedAt']) &&
+                                 isValidPrivateInfo(incoming()) &&
+                                 isValidTimestamp(incoming().updatedAt);
+        allow delete: if false;
+      }
+    }
+
+    match /teams/{teamId} {
+      allow get: if isSignedIn() && isValidId(teamId);
+      allow list: if isSignedIn() && resource.data.workspaceId == 'default';
+
+      allow create: if isAdmin() &&
+                       isValidId(teamId) &&
+                       incoming().createdBy == request.auth.uid &&
+                       incoming().keys().hasAll(['workspaceId', 'name', 'description', 'leadId', 'memberIds', 'createdBy', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['workspaceId', 'name', 'description', 'leadId', 'memberIds', 'createdBy', 'createdAt', 'updatedAt']) &&
+                       isValidTeam(incoming()) &&
+                       isValidTimestamp(incoming().createdAt) &&
+                       isValidTimestamp(incoming().updatedAt);
+
+      allow update: if isAdmin() &&
+                       isValidId(teamId) &&
+                       isValidTeam(incoming()) &&
+                       incoming().workspaceId == existing().workspaceId &&
+                       incoming().createdBy == existing().createdBy &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'leadId', 'memberIds', 'updatedAt']);
+
+      allow delete: if isAdmin() && isValidId(teamId);
+    }
+
+    match /targets/{targetId} {
+      allow get: if isSignedIn() && isValidId(targetId);
+      allow list: if isSignedIn() && resource.data.workspaceId == 'default';
+
+      allow create: if isAdmin() &&
+                       isValidId(targetId) &&
+                       incoming().createdBy == request.auth.uid &&
+                       incoming().keys().hasAll(['workspaceId', 'name', 'description', 'deadline', 'stages', 'createdBy', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['workspaceId', 'name', 'description', 'deadline', 'stages', 'createdBy', 'createdAt', 'updatedAt']) &&
+                       isValidTarget(incoming()) &&
+                       isValidTimestamp(incoming().createdAt) &&
+                       isValidTimestamp(incoming().updatedAt);
+
+      allow update: if isAdmin() &&
+                       isValidId(targetId) &&
+                       isValidTarget(incoming()) &&
+                       incoming().workspaceId == existing().workspaceId &&
+                       incoming().createdBy == existing().createdBy &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'deadline', 'stages', 'updatedAt']);
+
+      allow delete: if isAdmin() && isValidId(targetId);
+    }
+
+    match /templates/{templateId} {
+      allow get: if isSignedIn() && isValidId(templateId);
+      allow list: if isSignedIn() && resource.data.workspaceId == 'default';
+
+      allow create: if isAdmin() &&
+                       isValidId(templateId) &&
+                       incoming().createdBy == request.auth.uid &&
+                       incoming().keys().hasAll(['workspaceId', 'name', 'stages', 'createdBy', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['workspaceId', 'name', 'stages', 'createdBy', 'createdAt', 'updatedAt']) &&
+                       isValidTemplate(incoming()) &&
+                       isValidTimestamp(incoming().createdAt) &&
+                       isValidTimestamp(incoming().updatedAt);
+
+      allow update: if isAdmin() &&
+                       isValidId(templateId) &&
+                       isValidTemplate(incoming()) &&
+                       incoming().workspaceId == existing().workspaceId &&
+                       incoming().createdBy == existing().createdBy &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['name', 'stages', 'updatedAt']);
+
+      allow delete: if isAdmin() && isValidId(templateId);
+    }
+
+    match /tasks/{taskId} {
+      allow get: if isSignedIn() && isValidId(taskId);
+      allow list: if isSignedIn() && resource.data.workspaceId == 'default';
+
+      allow create: if isAdmin() &&
+                       isValidId(taskId) &&
+                       incoming().createdBy == request.auth.uid &&
+                       incoming().keys().hasAll(['workspaceId', 'title', 'description', 'targetId', 'stageName', 'dueDate', 'priority', 'status', 'assigneeType', 'assigneeId', 'createdBy', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['workspaceId', 'title', 'description', 'targetId', 'stageName', 'dueDate', 'priority', 'status', 'assigneeType', 'assigneeId', 'createdBy', 'createdAt', 'updatedAt']) &&
+                       isValidTask(incoming()) &&
+                       isValidTimestamp(incoming().createdAt) &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       (exists(/databases/$(database)/documents/targets/$(incoming().targetId)) ||
+                        existsAfter(/databases/$(database)/documents/targets/$(incoming().targetId)));
+
+      allow update: if isSignedIn() &&
+                       isValidId(taskId) &&
+                       isValidTask(incoming()) &&
+                       incoming().workspaceId == existing().workspaceId &&
+                       incoming().createdBy == existing().createdBy &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       (
+                         (isAdmin() &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'targetId', 'stageName', 'dueDate', 'priority', 'status', 'assigneeType', 'assigneeId', 'updatedAt'])) ||
+                         (isTaskAssignee(existing()) &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+                       );
+
+      allow delete: if isAdmin() && isValidId(taskId);
+
+      match /comments/{commentId} {
+        allow get: if isSignedIn() && isValidId(taskId) && isValidId(commentId);
+        allow list: if isSignedIn() && isValidId(taskId) && resource.data.taskId == taskId;
+
+        allow create: if isSignedIn() &&
+                         isValidId(taskId) &&
+                         isValidId(commentId) &&
+                         incoming().taskId == taskId &&
+                         incoming().authorId == request.auth.uid &&
+                         incoming().keys().hasAll(['taskId', 'authorId', 'authorName', 'body', 'createdAt']) &&
+                         incoming().keys().hasOnly(['taskId', 'authorId', 'authorName', 'body', 'createdAt']) &&
+                         isValidComment(incoming()) &&
+                         isValidTimestamp(incoming().createdAt) &&
+                         exists(/databases/$(database)/documents/tasks/$(taskId)) &&
+                         (isAdmin() || isTaskAssignee(get(/databases/$(database)/documents/tasks/$(taskId)).data));
+
+        allow update: if false;
+        allow delete: if isSignedIn() && isValidId(taskId) && isValidId(commentId) && (isAdmin() || existing().authorId == request.auth.uid);
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Journal Workflow",
+  "description": "Academic journal society editorial workflow manager with backward-scheduled publication targets, task assignments, team coordination, and live dashboards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

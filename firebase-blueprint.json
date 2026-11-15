@@ -1,0 +1,155 @@
+{
+  "entities": {
+    "AdminEmailEntry": {
+      "title": "AdminEmailEntry",
+      "description": "Email allowlist entry authorizing a Google account to sign in with Admin privileges.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "addedBy": { "type": "string" },
+        "isOwner": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp via FieldValue.serverTimestamp()" }
+      },
+      "required": ["email", "addedBy", "isOwner", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public society member directory entry without PII.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "member"] },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp via FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp via FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "displayName", "role", "createdAt", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated PII document for user email address accessible only to the user and Admins.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp via FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "email", "updatedAt"]
+    },
+    "Team": {
+      "title": "Team",
+      "description": "Editorial society team with a lead and member UIDs.",
+      "type": "object",
+      "properties": {
+        "workspaceId": { "type": "string", "enum": ["default"] },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "leadId": { "type": "string" },
+        "memberIds": { "type": "array" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workspaceId", "name", "description", "leadId", "memberIds", "createdBy", "createdAt", "updatedAt"]
+    },
+    "Target": {
+      "title": "Target",
+      "description": "Journal issue or volume publication target with deadline and backward-scheduled workflow stages.",
+      "type": "object",
+      "properties": {
+        "workspaceId": { "type": "string", "enum": ["default"] },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "deadline": { "type": "string", "description": "ISO-8601 local date YYYY-MM-DD" },
+        "stages": { "type": "array" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workspaceId", "name", "description", "deadline", "stages", "createdBy", "createdAt", "updatedAt"]
+    },
+    "WorkflowTemplate": {
+      "title": "WorkflowTemplate",
+      "description": "Reusable editorial workflow stage sequence with relative day offsets.",
+      "type": "object",
+      "properties": {
+        "workspaceId": { "type": "string", "enum": ["default"] },
+        "name": { "type": "string" },
+        "stages": { "type": "array" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workspaceId", "name", "stages", "createdBy", "createdAt", "updatedAt"]
+    },
+    "EditorialTask": {
+      "title": "EditorialTask",
+      "description": "Editorial task tied to a publication target and stage, assigned to one person or a team.",
+      "type": "object",
+      "properties": {
+        "workspaceId": { "type": "string", "enum": ["default"] },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "targetId": { "type": "string" },
+        "stageName": { "type": "string" },
+        "dueDate": { "type": "string", "description": "ISO-8601 local date YYYY-MM-DD" },
+        "priority": { "type": "string", "enum": ["low", "medium", "high"] },
+        "status": { "type": "string", "enum": ["todo", "in_progress", "done"] },
+        "assigneeType": { "type": "string", "enum": ["user", "team"] },
+        "assigneeId": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workspaceId", "title", "description", "targetId", "stageName", "dueDate", "priority", "status", "assigneeType", "assigneeId", "createdBy", "createdAt", "updatedAt"]
+    },
+    "TaskComment": {
+      "title": "TaskComment",
+      "description": "Threaded discussion comment inside a task subcollection.",
+      "type": "object",
+      "properties": {
+        "taskId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "body": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["taskId", "authorId", "authorName", "body", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/admin_emails/{emailId}": {
+      "schema": "AdminEmailEntry",
+      "description": "Allowlist of verified email addresses granted Admin privileges upon login."
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Public directory of signed-in journal society members and their roles."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": "UserPrivateInfo",
+      "description": "Private PII subcollection containing user email isolated to the owner and Admins."
+    },
+    "/teams/{teamId}": {
+      "schema": "Team",
+      "description": "Editorial teams with a lead and member list."
+    },
+    "/targets/{targetId}": {
+      "schema": "Target",
+      "description": "Publication issue/volume targets and their backward-scheduled workflow stages."
+    },
+    "/templates/{templateId}": {
+      "schema": "WorkflowTemplate",
+      "description": "Saved reusable workflow stage templates."
+    },
+    "/tasks/{taskId}": {
+      "schema": "EditorialTask",
+      "description": "Editorial tasks assigned to individuals or teams."
+    },
+    "/tasks/{taskId}/comments/{commentId}": {
+      "schema": "TaskComment",
+      "description": "Comments thread subcollection for a task."
+    }
+  }
+}

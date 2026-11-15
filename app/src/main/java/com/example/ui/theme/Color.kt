@@ -1,0 +1,71 @@
+package com.example.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+// Light Mode — Classic Ivory Paper & Deep Burgundy
+val IvoryBackground = Color(0xFFFAF7F2)
+val IvorySurface = Color(0xFFFFFFFF)
+val IvorySurfaceVariant = Color(0xFFF3EDE2)
+val IvorySurfaceContainerLow = Color(0xFFF7F2EA)
+val IvorySurfaceContainer = Color(0xFFF1EAE0)
+val IvorySurfaceContainerHigh = Color(0xFFEAE1D5)
+
+val BurgundyPrimary = Color(0xFF6B1D2F)
+val BurgundyOnPrimary = Color(0xFFFFFFFF)
+val BurgundyPrimaryContainer = Color(0xFFF4DFE3)
+val BurgundyOnPrimaryContainer = Color(0xFF4A0F1E)
+
+val InkOnBackground = Color(0xFF1F1A1B)
+val InkOnSurfaceVariant = Color(0xFF564B4D)
+val AcademicSecondary = Color(0xFF5C4B4E)
+val AcademicSecondaryContainer = Color(0xFFEBE1DC)
+val AcademicOnSecondaryContainer = Color(0xFF281D1F)
+val BrassTertiary = Color(0xFF7C5A2B)
+val BrassTertiaryContainer = Color(0xFFF5E6CC)
+val BrassOnTertiaryContainer = Color(0xFF2E1E06)
+val LightOutline = Color(0xFF9C8F82)
+val LightOutlineVariant = Color(0xFFE2D9CB)
+
+// Dark Mode — Evening Study & Soft Rose-Burgundy
+val StudyBackground = Color(0xFF161213)
+val StudySurface = Color(0xFF201A1C)
+val StudySurfaceVariant = Color(0xFF2B2326)
+val StudySurfaceContainerLow = Color(0xFF1B1617)
+val StudySurfaceContainer = Color(0xFF241D1F)
+val StudySurfaceContainerHigh = Color(0xFF2E2528)
+
+val RosePrimary = Color(0xFFE598A8)
+val RoseOnPrimary = Color(0xFF440C1B)
+val RosePrimaryContainer = Color(0xFF591627)
+val RoseOnPrimaryContainer = Color(0xFFFFD9E0)
+
+val DarkOnBackground = Color(0xFFF3ECE8)
+val DarkOnSurfaceVariant = Color(0xFFCFC2C4)
+val DarkSecondary = Color(0xFFD6C2C5)
+val DarkSecondaryContainer = Color(0xFF3A2F32)
+val DarkOnSecondaryContainer = Color(0xFFF3E2E4)
+val DarkBrassTertiary = Color(0xFFD6B47E)
+val DarkBrassTertiaryContainer = Color(0xFF4D3816)
+val DarkBrassOnTertiaryContainer = Color(0xFFF9E5C5)
+val DarkOutline = Color(0xFF8C7B7E)
+val DarkOutlineVariant = Color(0xFF3D3235)
+
+// Semantic Task Status Tokens (Light)
+val TodoBgLight = Color(0xFFE8ECEF)
+val TodoFgLight = Color(0xFF475569)
+val InProgressBgLight = Color(0xFFFEF3C7)
+val InProgressFgLight = Color(0xFF9A4606)
+val DoneBgLight = Color(0xFFDCFCE7)
+val DoneFgLight = Color(0xFF166534)
+val OverdueBgLight = Color(0xFFFEE2E2)
+val OverdueFgLight = Color(0xFFB91C1C)
+
+// Semantic Task Status Tokens (Dark)
+val TodoBgDark = Color(0xFF2C343F)
+val TodoFgDark = Color(0xFFCBD5E1)
+val InProgressBgDark = Color(0xFF3E2B11)
+val InProgressFgDark = Color(0xFFFBBF24)
+val DoneBgDark = Color(0xFF143521)
+val DoneFgDark = Color(0xFF4ADE80)
+val OverdueBgDark = Color(0xFF451619)
+val OverdueFgDark = Color(0xFFF87171)
